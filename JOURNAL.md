@@ -25,3 +25,20 @@ Currently, the system relies solely on vector and keyword scores to rank retriev
 **Part 3 — Codebase Readiness:** I have located `rag/retriever/hybrid.py` and identified where the integration point for the new `reranker.py` module belongs. I have reviewed the existing retrieval logic and feel confident that I can inject the re-ranking logic without destabilizing the current flow.
 
 **Part 4 — Scope and Time:** The estimated effort is 7–10 hours. Given my familiarity with the codebase and the upcoming two-week window for implementation and testing, this is well within my capacity for the Week 9 deadline. There are no blockers or dependencies listed on the issue.
+
+
+## Week 8 — Reproduction & Solution Planning
+
+**Reproduction commit link:** https://github.com/BradshawAsher/pathreview/commit/046fb0f4677d29945c093bf1b6818ade6a097d46
+
+**Reproduction commit branch link:** https://github.com/BradshawAsher/pathreview/tree/feat/34-llm-chunk-reranker
+
+**Reproduction summary:**
+Confirmed that `rag/retriever/hybrid.py` returns hybrid search results directly to the generator with no LLM re-ranking pass, and that `rag/retriever/reranker.py` does not exist (no `rerank` references anywhere in the codebase). Documented the gap with a reproduction test at `tests/unit/test_reranker.py`: one test passes because the reranker module is absent, and one `xfail` test defines the desired `rerank()` behavior. Running `pytest tests/unit/test_reranker.py -v` yields `1 passed, 1 xfailed`; the xfail will flip to xpass once the reranker is implemented.
+
+**PLAN.md link:** https://github.com/BradshawAsher/pathreview/blob/feat/34-llm-chunk-reranker/PLAN.md
+
+**Walkthrough video (recommended):** _Insert Loom link if recorded, or leave blank_
+
+**Blockers or open questions:**
+None at the moment — one open question is which model to configure for the re-ranking pass (a small/fast model to keep latency low).
