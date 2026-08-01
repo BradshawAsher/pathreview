@@ -78,4 +78,11 @@ An optional LLM re-ranking step for the hybrid retriever (issue #34). After hybr
 **Self-review confirmation:** [x] make check passes  [x] make test-unit passes
 _(“passes” = no new failures vs. the documented pre-existing baseline; see the PR’s Notes for Reviewers.)_
 
-**Draft PR feedback received from:** _TODO: Slack handle of reviewer, or "none"_
+**Draft PR feedback received from:** none (skipped peer review for time; performed a self-review instead — notes below)
+
+**Self-review notes:**
+- **Backward compatibility:** `HybridRetriever` behaves identically when no `reranker` is passed — the reranking pass is guarded by `if self.reranker is not None`. Covered by `test_retrieve_without_reranker_unchanged`.
+- **Fallback safety:** verified graceful degradation on LLM/API failure, unparseable output, and empty/missing text — each falls back to the chunk's existing hybrid `score`, so results never drop below plain hybrid ranking. Covered by dedicated tests.
+- **Ordering:** the reranker re-scores the full `min_score`-filtered candidate pool (up to `2 * max_chunks`) before truncation, so a genuinely relevant chunk can be promoted above a keyword-heavy but off-topic one.
+- **Observation / follow-up:** `rerank()` attaches a new `rerank_score` and sorts by it, but preserves the original hybrid `score`. Downstream display code (`ReviewGenerator._format_context`) still reads `score`, so the shown "relevance" would remain the hybrid score after reranking. Not a bug for this PR (the reranker isn't wired into the generator yet), but worth aligning when the pipeline is assembled.
+- **Known cost:** per-chunk scoring means N LLM calls per retrieval; mitigated by a small/fast model + low `max_tokens`. Batching is a possible optimization.
