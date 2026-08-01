@@ -65,7 +65,7 @@ None. Open question (non-blocking): which model to configure for the re-ranking 
 
 ### Check-in 2 (end of week)
 
-**PR link:** _TODO: paste the submitted (non-draft) PR URL here_
+**PR link:** https://github.com/ascherj/pathreview/pull/514
 
 **Branch:** `feat/34-llm-chunk-reranker`
 
