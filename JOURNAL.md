@@ -42,3 +42,40 @@ Confirmed that `rag/retriever/hybrid.py` returns hybrid search results directly 
 
 **Blockers or open questions:**
 None at the moment — one open question is which model to configure for the re-ranking pass (a small/fast model to keep latency low).
+
+## Week 9 — Solution building & PR submission
+
+### Check-in 1 (mid-week)
+
+**Current progress:**
+All three sub-tasks from PLAN.md are implemented:
+1. Created `rag/retriever/reranker.py` with `LLMReranker` + `RerankConfig`. It scores each retrieved chunk's relevance (0–10) via a small, low-temperature LLM, normalizes to 0–1, and re-sorts. Score parsing tolerates prose and out-of-range values (clamped to 0–10).
+2. Integrated the reranker into `rag/retriever/hybrid.py` — `HybridRetriever` takes an optional `reranker`; when supplied, `min_score`-filtered candidates are re-ranked before truncation to `max_chunks`. Backward-compatible (behavior unchanged when omitted).
+3. Wrote 21 unit + integration tests in `tests/unit/test_reranker.py` that mock the LLM, replacing the Week 8 reproduction stub.
+
+Also handled the PLAN's edge cases (empty results, missing text, LLM/API failure → fall back to hybrid score) and captured a baseline of pre-existing test/lint failures before starting.
+
+**Next steps:**
+Open a draft PR, request peer/mentor review in Slack, address any feedback, then mark it ready for review and finalize.
+
+**Blockers:**
+None. Open question (non-blocking): which model to configure for the re-ranking pass once the retrieval pipeline is wired into a live orchestrator.
+
+---
+
+### Check-in 2 (end of week)
+
+**PR link:** _TODO: paste the submitted (non-draft) PR URL here_
+
+**Branch:** `feat/34-llm-chunk-reranker`
+
+**What you built:**
+An optional LLM re-ranking step for the hybrid retriever (issue #34). After hybrid search blends vector and keyword scores, a small LLM re-scores each candidate chunk's relevance to the query and re-sorts before the top-k are sent to the generator. It is defensive: any LLM/API failure or unparseable output falls back to the existing hybrid score, so results never degrade below plain hybrid ranking.
+
+**Tests added or updated:**
+`tests/unit/test_reranker.py` — 21 tests covering LLM-driven re-sorting, score normalization + clamping, `top_k` truncation, original-field preservation, and graceful fallback on API failure / unparseable output / empty / missing text; plus integration tests asserting `HybridRetriever` delegates to the reranker when provided and preserves pure hybrid ordering when not. (Pre-existing baseline: 83 test failures/errors unrelated to this issue; my changes introduce zero new failures — 83 before, 83 after.)
+
+**Self-review confirmation:** [x] make check passes  [x] make test-unit passes
+_(“passes” = no new failures vs. the documented pre-existing baseline; see the PR’s Notes for Reviewers.)_
+
+**Draft PR feedback received from:** _TODO: Slack handle of reviewer, or "none"_
