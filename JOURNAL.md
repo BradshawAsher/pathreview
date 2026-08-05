@@ -86,3 +86,34 @@ _(“passes” = no new failures vs. the documented pre-existing baseline; see t
 - **Ordering:** the reranker re-scores the full `min_score`-filtered candidate pool (up to `2 * max_chunks`) before truncation, so a genuinely relevant chunk can be promoted above a keyword-heavy but off-topic one.
 - **Observation / follow-up:** `rerank()` attaches a new `rerank_score` and sorts by it, but preserves the original hybrid `score`. Downstream display code (`ReviewGenerator._format_context`) still reads `score`, so the shown "relevance" would remain the hybrid score after reranking. Not a bug for this PR (the reranker isn't wired into the generator yet), but worth aligning when the pipeline is assembled.
 - **Known cost:** per-chunk scoring means N LLM calls per retrieval; mitigated by a small/fast model + low `max_tokens`. Batching is a possible optimization.
+
+## Week 10 — Iteration & reflection
+
+### Reviewer feedback
+
+**Feedback received:** [ ] Yes  [x] No — still awaiting review
+
+**Summary of feedback:**
+No reviewer feedback was received (Summer 2026 cohort / awaiting review).
+
+**How you responded:**
+
+
+---
+
+### Reflection
+
+**What was harder than you expected?**
+Building robust, defensive error handling for non-deterministic LLM responses in a core retrieval pipeline was significantly more challenging than standard software engineering. While a simple system prompt ("rate from 0 to 10") sounds straightforward, real LLM outputs can be chatty (e.g., "Relevance score: 8/10"), return unexpected formatting, or fail entirely due to API rate limits or network issues. Designing regex score extraction (`re.compile(r"[-+]?\d*\.?\d+")`), clamping out-of-range floats to `[0.0, 10.0]`, and implementing a graceful fallback to original hybrid scores (`float(chunk.get("score", 0.0))`) required much more edge-case planning than expected. Additionally, working against a repo with an 83-test pre-existing failure baseline meant I had to strictly isolate my test suite (`tests/unit/test_reranker.py`) to verify that zero new regressions were introduced.
+
+**What did you learn about working in a large codebase?**
+I learned the vital importance of preserving backward compatibility and loose coupling when extending existing architectures. Injecting `LLMReranker` into `HybridRetriever` required making the `reranker` parameter optional so that existing callers, pipelines, and test suites would function without modification when `reranker=None`. Contributing to production code is vastly different from building a personal project from scratch: you cannot rewrite existing signatures or ignore surrounding conventions like `structlog` logging and `OpenAI` client SDK patterns. Every change must feel native to the existing system architecture.
+
+**How did AI tools help — and where did they fall short?**
+AI tools were exceptionally helpful for generating repetitive unit test scaffolding, mocking `OpenAI.chat.completions.create` responses, and drafting initial regex patterns for string parsing. However, AI fell short on system-level defensive architecture and latency considerations. AI initially suggested basic `float(response)` parsing, which would crash with a `ValueError` on conversational model output, and missed the risk of unhandled API exceptions breaking the retrieval pipeline. Human judgment was required to design the zero-downtime fallback strategy (falling back to hybrid search scores on API error) and to evaluate the operational tradeoff of per-chunk LLM API calls ($N$ requests per query).
+
+**What would you do differently if you started over?**
+If I were to start over, I would design the re-ranking step with asynchronous batching (`asyncio.gather` or batch prompting) from day one rather than sequential per-chunk scoring loops. Sequential LLM calls introduce $N$ network round-trips per retrieval, which adds latency overhead. Secondly, I would align the score property naming upfront across the pipeline—`LLMReranker` assigns a `rerank_score` while downstream context formatters (`ReviewGenerator._format_context`) still read `score`. Explicitly standardizing how re-ranked scores propagate to downstream generation components would make the end-to-end integration cleaner.
+
+**What are you most proud of from this module?**
+I am most proud of building a production-grade, defensive LLM feature with zero-downtime fallback guarantees. Rather than creating a fragile proof-of-concept, I engineered `LLMReranker` so that any model failure, timeout, rate limit, or unparseable output gracefully degrades to standard hybrid search ordering without throwing exceptions or returning empty results. Delivering 21 comprehensive unit and integration tests covering every fallback path—and verifying zero new regressions against the codebase baseline—gives me high confidence in the reliability of this contribution.
